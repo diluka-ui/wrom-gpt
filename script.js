@@ -977,6 +977,8 @@ async function sendMessage(isRegenerate) {
 
                 method: "POST",
 
+                signal: AbortSignal.timeout(70000),
+
                 headers: {
                     "Content-Type": "application/json",
                     "apikey": SUPABASE_ANON_KEY,
@@ -1036,7 +1038,14 @@ async function sendMessage(isRegenerate) {
 
         loading.remove();
 
-        addMessage("Error: " + error.message, "ai");
+        const timedOut = error && (error.name === "TimeoutError" || error.name === "AbortError");
+
+        addMessage(
+            timedOut
+                ? "Error: The server took too long to respond. Please try again."
+                : "Error: " + error.message,
+            "ai"
+        );
 
     } finally {
 
