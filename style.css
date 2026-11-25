@@ -602,3 +602,47 @@ border: 1px solid var(--border); border-radius: 12px; line-height: 1.6; white-sp
 
 /* Images from web search */
 .ai-content img { display: block; max-height: 280px; width: auto; max-width: 100%; margin: 10px 0; object-fit: cover; border: 1px solid var(--border); }
+
+/* IMAGE VIEWER */
+.image-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(3, 9, 6, .94);
+    backdrop-filter: blur(6px);
+    animation: authIn .25s ease;
+}
+
+.image-viewer img {
+    max-width: 100%;
+    max-height: calc(100% - 80px);
+    object-fit: contain;
+    border-radius: 12px;
+    touch-action: pinch-zoom;
+}
+
+.image-viewer-bar {
+    display: flex;
+    gap: 10px;
+}
+
+.image-viewer-bar button {
+    padding: 11px 22px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: bold;
+    background: rgba(54, 230, 138, .14);
+    border: 1px solid rgba(54, 230, 138, .3);
+    color: var(--green2);
+}
+
+.image-viewer-bar button:first-child {
+    background: var(--green);
+    color: #06140b;
+}
