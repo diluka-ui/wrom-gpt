@@ -240,6 +240,8 @@ async function forgotPassword() {
 
 async function logout() {
 
+    await saveCloudChats();
+
     await sb.auth.signOut();
 
     localStorage.removeItem("wrom_sessions");
@@ -249,6 +251,86 @@ async function logout() {
 }
 
 
+// ============================================
+// CLOUD CHAT HISTORY (Supabase table: user_chats)
+// ============================================
+
+let cloudUserId = null;
+let cloudReady = false;
+let cloudSaveTimer = null;
+
+async function loadCloudChats(userId) {
+
+    try {
+        const { data, error } = await sb
+            .from("user_chats")
+            .select("data")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        const cloud = Array.isArray(data?.data) ? data.data : [];
+
+        // merge this device + cloud, newest version of each chat wins
+        const merged = new Map();
+
+        [...sessions, ...cloud].forEach(item => {
+
+            if (!item || !item.id) return;
+
+            const old = merged.get(item.id);
+
+            if (!old || (item.updatedAt || 0) > (old.updatedAt || 0)) {
+                merged.set(item.id, item);
+            }
+        });
+
+        sessions = [...merged.values()]
+            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+            .slice(0, 50);
+
+        cloudReady = true;
+
+        saveSessions();
+        renderHistory();
+
+    } catch (error) {
+        cloudReady = false;
+        console.warn("Cloud chat history unavailable:", error.message || error);
+    }
+}
+
+async function saveCloudChats() {
+
+    if (!cloudReady || !cloudUserId) return;
+
+    try {
+        const { error } = await sb.from("user_chats").upsert({
+            user_id: cloudUserId,
+            data: sessions.slice(0, 50),
+            updated_at: new Date().toISOString()
+        });
+
+        if (error) throw error;
+
+    } catch (error) {
+        console.warn("Cloud chat save failed:", error.message || error);
+    }
+}
+
+// every local save also schedules a cloud save
+const originalSaveSessions = saveSessions;
+
+window.saveSessions = function () {
+
+    originalSaveSessions();
+
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(saveCloudChats, 1500);
+};
+
+
 // ---------- session handling ----------
 
 function applySession(session) {
@@ -256,6 +338,11 @@ function applySession(session) {
     window.WROM_TOKEN = session ? session.access_token : null;
 
     const emailBox = document.getElementById("profileEmail");
+
+    if (session && cloudUserId !== session.user.id) {
+        cloudUserId = session.user.id;
+        loadCloudChats(cloudUserId);
+    }
 
     if (session) {
         authScreen.classList.add("hidden");
