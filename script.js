@@ -507,17 +507,102 @@ function showHistory() {
     togglePanel("historyPanel");
 }
 
-function showMemory() {
-    const box = document.getElementById("memoryContent");
+async function memoryRequest(payload) {
 
-    if (box) {
-        box.textContent =
-            "WROM GPT automatically saves important facts you tell it " +
-            "and uses them in future chats. Say \"remember this\" to " +
-            "save something on purpose.";
+    const response = await fetch(AI_ENDPOINT, {
+        method: "POST",
+        signal: AbortSignal.timeout(20000),
+        headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": "Bearer " + (window.WROM_TOKEN || SUPABASE_ANON_KEY)
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || data.error) {
+        throw new Error(data.error || ("HTTP " + response.status));
     }
 
+    return data;
+}
+
+async function loadMemoryPanel() {
+
+    const box = document.getElementById("memoryContent");
+    if (!box) return;
+
+    box.textContent = "Loading memories...";
+
+    try {
+        const data = await memoryRequest({ action: "list_memories" });
+        const list = data.memories || [];
+
+        box.innerHTML = "";
+
+        if (!list.length) {
+            box.textContent =
+                "No saved memories yet. Tell WROM GPT something about you " +
+                "(or say \"remember this\") and it will appear here.";
+            return;
+        }
+
+        list.forEach(item => {
+
+            const row = document.createElement("div");
+            row.style.cssText =
+                "display:flex;gap:10px;align-items:flex-start;margin:8px 0;" +
+                "padding:11px 13px;border-radius:10px;background:#12231a;" +
+                "border:1px solid rgba(160,255,190,.10);";
+
+            const text = document.createElement("div");
+            text.textContent = item.memory;
+            text.style.cssText = "flex:1;font-size:13px;line-height:1.6;overflow-wrap:anywhere;";
+
+            const del = document.createElement("button");
+            del.type = "button";
+            del.textContent = "Delete";
+            del.style.cssText =
+                "padding:5px 10px;border-radius:7px;font-size:11px;" +
+                "background:rgba(255,90,90,.12);border:1px solid rgba(255,90,90,.3);" +
+                "color:#ff9b9b;";
+
+            del.onclick = async () => {
+
+                if (!confirm("Delete this memory?")) return;
+
+                del.disabled = true;
+
+                try {
+                    await memoryRequest({ action: "delete_memory", id: item.id });
+                    row.remove();
+                    showNotice("Memory deleted.");
+                } catch (error) {
+                    del.disabled = false;
+                    showNotice("Could not delete: " + error.message);
+                }
+            };
+
+            row.appendChild(text);
+            row.appendChild(del);
+            box.appendChild(row);
+        });
+
+    } catch (error) {
+        box.textContent = "Could not load memories: " + error.message;
+    }
+}
+
+function showMemory() {
     togglePanel("memoryPanel");
+
+    const panel = document.getElementById("memoryPanel");
+
+    if (panel && panel.classList.contains("show")) {
+        loadMemoryPanel();
+    }
 }
 
 function showTools() {
