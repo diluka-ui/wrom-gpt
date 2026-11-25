@@ -288,6 +288,8 @@ function renderAIContent(text) {
                 img.referrerPolicy = "no-referrer";
                 img.alt = img.alt || "image";
                 img.onerror = () => img.remove();
+                img.style.cursor = "zoom-in";
+                img.addEventListener("click", () => openImageViewer(img.currentSrc || img.src));
             });
 
             container.querySelectorAll("a").forEach(link => {
@@ -1066,3 +1068,100 @@ async function sendMessage(isRegenerate) {
         });
     }
 }
+
+
+// ============================================
+// IMAGE VIEWER (tap an image to open / save)
+// ============================================
+
+function closeImageViewer() {
+    const viewer = document.getElementById("imageViewer");
+    if (viewer) viewer.remove();
+}
+
+function openImageViewer(src) {
+
+    closeImageViewer();
+
+    const viewer = document.createElement("div");
+    viewer.id = "imageViewer";
+    viewer.className = "image-viewer";
+
+    const img = document.createElement("img");
+    img.src = src;
+    img.referrerPolicy = "no-referrer";
+    img.alt = "image";
+
+    const bar = document.createElement("div");
+    bar.className = "image-viewer-bar";
+
+    const save = document.createElement("button");
+    save.type = "button";
+    save.textContent = "Save";
+    save.onclick = () => saveViewerImage(src);
+
+    const open = document.createElement("button");
+    open.type = "button";
+    open.textContent = "Open";
+    open.onclick = () => window.open(src, "_blank", "noopener");
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "Close";
+    close.onclick = closeImageViewer;
+
+    bar.appendChild(save);
+    bar.appendChild(open);
+    bar.appendChild(close);
+
+    viewer.appendChild(img);
+    viewer.appendChild(bar);
+
+    // tap the dark background to close
+    viewer.addEventListener("click", event => {
+        if (event.target === viewer) closeImageViewer();
+    });
+
+    document.body.appendChild(viewer);
+}
+
+async function saveViewerImage(src) {
+
+    try {
+        const response = await fetch(src, { mode: "cors" });
+
+        if (!response.ok) throw new Error("Download failed");
+
+        const blob = await response.blob();
+
+        const ext = blob.type.includes("png") ? ".png"
+            : blob.type.includes("webp") ? ".webp"
+            : blob.type.includes("gif") ? ".gif"
+            : ".jpg";
+
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "wrom-gpt-image" + ext;
+
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+        showNotice("Image saved.");
+
+    } catch (error) {
+
+        // Some websites block direct downloads: open it so it can be saved manually
+        window.open(src, "_blank", "noopener");
+
+        showNotice("Opened the image. Press and hold it to save.");
+    }
+}
+
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeImageViewer();
+});
