@@ -283,6 +283,13 @@ function renderAIContent(text) {
 
             container.innerHTML = safeHTML;
 
+            container.querySelectorAll("img").forEach(img => {
+                img.loading = "lazy";
+                img.referrerPolicy = "no-referrer";
+                img.alt = img.alt || "image";
+                img.onerror = () => img.remove();
+            });
+
             container.querySelectorAll("a").forEach(link => {
                 const href = link.getAttribute("href") || "";
 
