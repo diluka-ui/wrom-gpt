@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#07110d">
+<meta name="robots" content="noindex, nofollow">
+<title>WROM GPT – Admin</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #07110d; --surface: #0d1913; --surface2: #12231a;
+  --border: rgba(160,255,190,.12); --green: #36e68a; --green2: #a2ffc4;
+  --text: #f2fff6; --muted: #8ba697; --red: #ff7b7b;
+}
+body { background: var(--bg); color: var(--text); font-family: Arial, sans-serif; min-height: 100vh; }
+button { font-family: inherit; cursor: pointer; border: none; color: inherit; }
+header {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border); background: rgba(7,17,13,.95);
+  position: sticky; top: 0; z-index: 10;
+}
+header h1 { font-size: 17px; letter-spacing: 1px; }
+header h1 span { color: var(--green); }
+header small { display: block; color: var(--muted); font-size: 10px; letter-spacing: 2px; margin-top: 3px; }
+.top-actions { display: flex; gap: 8px; }
+.btn {
+  padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: bold;
+  background: rgba(54,230,138,.12); border: 1px solid rgba(54,230,138,.3); color: var(--green2);
+}
+.btn.danger { background: rgba(255,90,90,.12); border-color: rgba(255,90,90,.35); color: #ff9b9b; }
+.btn:disabled { opacity: .5; cursor: wait; }
+main { max-width: 980px; margin: 0 auto; padding: 18px 14px 60px; }
+h2 { font-size: 13px; letter-spacing: 2px; color: var(--green); margin: 26px 0 12px; }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 700px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 15px; }
+.card b { display: block; font-size: 26px; color: var(--green2); margin-bottom: 4px; }
+.card span { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+.status { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill {
+  padding: 8px 12px; border-radius: 20px; font-size: 12px; background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.pill.ok { border-color: rgba(54,230,138,.4); color: var(--green2); }
+.pill.bad { border-color: rgba(255,90,90,.4); color: #ff9b9b; }
+input.search {
+  width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 12px; outline: none;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text); font-size: 14px;
+}
+input.search:focus { border-color: var(--green); }
+.user {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px; margin-bottom: 10px;
+}
+.user.banned { border-color: rgba(255,90,90,.4); }
+.user .email { font-size: 14px; font-weight: bold; word-break: break-all; }
+.user .meta { font-size: 11px; color: var(--muted); line-height: 1.8; margin: 6px 0 10px; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 10px; margin-left: 6px;
+  background: rgba(255,90,90,.15); color: #ff9b9b; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.center { text-align: center; padding: 70px 20px; color: var(--muted); line-height: 1.8; }
+.center a { color: var(--green); }
+.modal {
+  position: fixed; inset: 0; z-index: 50; background: rgba(3,9,6,.92); overflow-y: auto; padding: 18px 14px;
+}
+.modal-box { max-width: 640px; margin: 0 auto; }
+.mem {
+  display: flex; gap: 10px; align-items: flex-start; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; margin: 8px 0;
+  font-size: 13px; line-height: 1.6;
+}
+.mem div { flex: 1; overflow-wrap: anywhere; }
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 100;
+  background: #102a1c; border: 1px solid var(--green); color: var(--green2);
+  padding: 11px 16px; border-radius: 10px; font-size: 12px; max-width: 90%; text-align: center;
+}
+.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>WROM <span>GPT</span> ADMIN</h1>
+    <small id="adminEmail">CHECKING ACCESS</small>
+  </div>
+  <div class="top-actions">
+    <button class="btn" onclick="loadAll()">Refresh</button>
+    <button class="btn" onclick="location.href='index.html'">Back to chat</button>
+  </div>
+</header>
+
+<div id="gate" class="center">Checking access...</div>
+
+<main id="panel" class="hidden">
+
+  <h2>OVERVIEW</h2>
+  <div class="grid" id="overviewGrid"></div>
+
+  <h2>SYSTEM STATUS</h2>
+  <div class="status" id="statusPills"></div>
+
+  <h2>USERS</h2>
+  <input class="search" id="userSearch" type="search" placeholder="Search users by email...">
+  <div id="usersList"></div>
+
+</main>
+
+<div id="memModal" class="modal hidden">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h2 style="margin:0;" id="memTitle">MEMORIES</h2>
+      <button class="btn" onclick="closeMemories()">Close</button>
+    </div>
+    <div id="memList"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+var SUPABASE_URL = "https://ljoptxbpueeheavgngjy.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_Mr5_2oU30ueMAhO5IJ1zvQ_8F-qY6LD";
+var AI_ENDPOINT = SUPABASE_URL + "/functions/v1/wrom-ai";
+
+var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+var allUsers = [];
+
+function $(id) { return document.getElementById(id); }
+
+function toast(text) {
+  var old = document.querySelector(".toast");
+  if (old) old.remove();
+  var t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = text;
+  document.body.appendChild(t);
+  setTimeout(function () { t.remove(); }, 3000);
+}
+
+function fmt(date) {
+  if (!date) return "never";
+  return new Date(date).toLocaleString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
+  });
+}
+
+async function api(payload) {
+  var res = await sb.auth.getSession();
+  var session = res.data.session;
+
+  if (!session) throw new Error("Not logged in.");
+
+  var response = await fetch(AI_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": "Bearer " + session.access_token
+    },
+    body: JSON.stringify(payload)
+  });
+
+  var data = await response.json().catch(function () { return {}; });
+
+  if (response.status === 403) throw new Error("ACCESS_DENIED");
+  if (!response.ok || data.error) throw new Error(data.error || "HTTP " + response.status);
+
+  return data;
+}
+
+function deny(message) {
+  $("panel").classList.add("hidden");
+  $("gate").classList.remove("hidden");
+  $("gate").innerHTML = "";
+  var p = document.createElement("div");
+  p.textContent = message;
+  $("gate").appendChild(p);
+  var a = document.createElement("a");
+  a.href = "index.html";
+  a.textContent = "Go to WROM GPT";
+  $("gate").appendChild(document.createElement("br"));
+  $("gate").appendChild(a);
+}
+
+function card(value, label) {
+  var c = document.createElement("div");
+  c.className = "card";
+  var b = document.createElement("b");
+  b.textContent = value;
+  var s = document.createElement("span");
+  s.textContent = label;
+  c.appendChild(b);
+  c.appendChild(s);
+  return c;
+}
+
+function pill(text, ok) {
+  var p = document.createElement("div");
+  p.className = "pill " + (ok ? "ok" : "bad");
+  p.textContent = text;
+  return p;
+}
+
+function renderOverview(o) {
+  var grid = $("overviewGrid");
+  grid.innerHTML = "";
+  grid.appendChild(card(o.totalUsers, "TOTAL USERS"));
+  grid.appendChild(card(o.newToday, "NEW TODAY"));
+  grid.appendChild(card(o.new7d, "NEW (7 DAYS)"));
+  grid.appendChild(card(o.active7d, "ACTIVE (7 DAYS)"));
+  grid.appendChild(card(o.memories, "AI MEMORIES"));
+  grid.appendChild(card(o.usersWithCloudChats, "USERS WITH CLOUD CHATS"));
+  grid.appendChild(card(o.bannedUsers, "BANNED USERS"));
+  grid.appendChild(card(o.model, "AI MODEL"));
+
+  var pills = $("statusPills");
+  pills.innerHTML = "";
+  pills.appendChild(pill("Gemini keys: " + o.geminiKeys, o.geminiKeys > 0));
+  pills.appendChild(pill("Tavily search keys: " + o.tavilyKeys, o.tavilyKeys > 0));
+  pills.appendChild(pill("Backblaze B2 backup: " + (o.b2Configured ? "on" : "off"), o.b2Configured));
+}
+
+function renderUsers() {
+  var q = $("userSearch").value.trim().toLowerCase();
+  var list = $("usersList");
+  list.innerHTML = "";
+
+  var users = allUsers.filter(function (u) {
+    return !q || u.email.toLowerCase().indexOf(q) !== -1;
+  });
+
+  if (!users.length) {
+    var empty = document.createElement("div");
+    empty.className = "center";
+    empty.textContent = "No users found.";
+    list.appendChild(empty);
+    return;
+  }
+
+  users.forEach(function (u) {
+    var box = document.createElement("div");
+    box.className = "user" + (u.banned ? " banned" : "");
+
+    var email = document.createElement("div");
+    email.className = "email";
+    email.textContent = u.email;
+
+    if (u.banned) {
+      var tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = "BANNED";
+      email.appendChild(tag);
+    }
+
+    var meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent =
+      "Joined: " + fmt(u.created_at) + "\n" +
+      "Last login: " + fmt(u.last_sign_in_at) + "\n" +
+      "Sign-in: " + u.provider + "  |  Memories: " + u.memories;
+    meta.style.whiteSpace = "pre-line";
+
+    var actions = document.createElement("div");
+    actions.className = "row-actions";
+
+    var mem = document.createElement("button");
+    mem.className = "btn";
+    mem.textContent = "Memories";
+    mem.onclick = function () { openMemories(u); };
+
+    var ban = document.createElement("button");
+    ban.className = "btn danger";
+    ban.textContent = u.banned ? "Unban" : "Ban";
+    ban.onclick = function () { toggleBan(u, ban); };
+
+    var del = document.createElement("button");
+    del.className = "btn danger";
+    del.textContent = "Delete";
+    del.onclick = function () { deleteUser(u, del); };
+
+    actions.appendChild(mem);
+    actions.appendChild(ban);
+    actions.appendChild(del);
+
+    box.appendChild(email);
+    box.appendChild(meta);
+    box.appendChild(actions);
+    list.appendChild(box);
+  });
+}
+
+async function toggleBan(u, button) {
+  var action = u.banned ? "unban" : "ban";
+
+  if (!confirm("Do you want to " + action + " " + u.email + "?")) return;
+
+  button.disabled = true;
+
+  try {
+    await api({ action: "admin_ban", id: u.id, ban: !u.banned });
+    toast(u.email + " " + action + "ned.");
+    await loadAll();
+  } catch (error) {
+    button.disabled = false;
+    toast(error.message);
+  }
+}
+
+async function deleteUser(u, button) {
+  if (!confirm("Delete " + u.email + " permanently? Their account and memories will be removed.")) return;
+
+  button.disabled = true;
+
+  try {
+    await api({ action: "admin_delete_user", id: u.id });
+    toast("User deleted.");
+    await loadAll();
+  } catch (error) {
+    button.disabled = false;
+    toast(error.message);
+  }
+}
+
+async function openMemories(u) {
+  $("memModal").classList.remove("hidden");
+  $("memTitle").textContent = "MEMORIES: " + u.email.toUpperCase();
+  var list = $("memList");
+  list.textContent = "Loading...";
+
+  try {
+    var data = await api({ action: "admin_user_memories", id: u.id });
+    list.innerHTML = "";
+
+    if (!data.memories.length) {
+      list.textContent = "No memories saved for this user.";
+      return;
+    }
+
+    data.memories.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "mem";
+
+      var text = document.createElement("div");
+      text.textContent = m.memory;
+
+      var del = document.createElement("button");
+      del.className = "btn danger";
+      del.textContent = "Delete";
+      del.onclick = async function () {
+        if (!confirm("Delete this memory?")) return;
+        del.disabled = true;
+        try {
+          await api({ action: "admin_delete_memory", id: m.id });
+          row.remove();
+          toast("Memory deleted.");
+        } catch (error) {
+          del.disabled = false;
+          toast(error.message);
+        }
+      };
+
+      row.appendChild(text);
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+  } catch (error) {
+    list.textContent = "Could not load: " + error.message;
+  }
+}
+
+function closeMemories() {
+  $("memModal").classList.add("hidden");
+}
+
+async function loadAll() {
+  try {
+    var overview = await api({ action: "admin_overview" });
+    var users = await api({ action: "admin_users" });
+
+    allUsers = users.users;
+
+    $("gate").classList.add("hidden");
+    $("panel").classList.remove("hidden");
+
+    renderOverview(overview.overview);
+    renderUsers();
+
+  } catch (error) {
+    if (error.message === "ACCESS_DENIED") {
+      deny("Access denied. This page is only for the WROM GPT admin.");
+    } else if (error.message === "Not logged in.") {
+      deny("Please log in to WROM GPT first, then open this page again.");
+    } else {
+      deny("Could not load: " + error.message);
+    }
+  }
+}
+
+$("userSearch").addEventListener("input", renderUsers);
+
+sb.auth.getSession().then(function (res) {
+  var session = res.data.session;
+
+  if (!session) {
+    deny("Please log in to WROM GPT first, then open this page again.");
+    return;
+  }
+
+  $("adminEmail").textContent = session.user.email.toUpperCase();
+  loadAll();
+});
+</script>
+</body>
+</html>
