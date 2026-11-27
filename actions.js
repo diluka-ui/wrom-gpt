@@ -28,6 +28,42 @@
         return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
     }
 
+    // ---------- apps that can be opened ----------
+
+    const APPS = {
+        youtube:   { name: "YouTube",    url: "https://www.youtube.com/",     pkg: "com.google.android.youtube",
+                     search: q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q) },
+        whatsapp:  { name: "WhatsApp",   url: "https://wa.me/",               pkg: "com.whatsapp" },
+        facebook:  { name: "Facebook",   url: "https://www.facebook.com/",    pkg: "com.facebook.katana" },
+        instagram: { name: "Instagram",  url: "https://www.instagram.com/",   pkg: "com.instagram.android" },
+        telegram:  { name: "Telegram",   url: "https://t.me/",                pkg: "org.telegram.messenger" },
+        twitter:   { name: "X (Twitter)", url: "https://x.com/",              pkg: "com.twitter.android" },
+        tiktok:    { name: "TikTok",     url: "https://www.tiktok.com/",      pkg: "com.zhiliaoapp.musically" },
+        spotify:   { name: "Spotify",    url: "https://open.spotify.com/",    pkg: "com.spotify.music" },
+        maps:      { name: "Google Maps", url: "https://www.google.com/maps", pkg: "com.google.android.apps.maps" },
+        gmail:     { name: "Gmail",      url: "https://mail.google.com/",     pkg: "com.google.android.gm" },
+        playstore: { name: "Play Store", url: "https://play.google.com/store", pkg: "com.android.vending" }
+    };
+
+    const APP_ALIASES = {
+        x: "twitter", "google maps": "maps", "play store": "playstore",
+        "you tube": "youtube", "whats app": "whatsapp", fb: "facebook", insta: "instagram"
+    };
+
+    // Opens the real app if it is installed, otherwise the website
+    function appLaunchUrl(key, query) {
+
+        const app = APPS[key];
+        if (!app) return null;
+
+        const target = (query && app.search) ? app.search(query) : app.url;
+        const u = new URL(target);
+
+        return "intent://" + u.host + u.pathname + u.search +
+            "#Intent;scheme=https;package=" + app.pkg +
+            ";S.browser_fallback_url=" + encodeURIComponent(target) + ";end";
+    }
+
     // ---------- turn raw AI JSON into a safe action ----------
 
     function normalize(raw) {
@@ -144,6 +180,22 @@
                 const text = clean(raw.text, 2000);
                 if (!text) return null;
                 return { type, text, label: "Copy this text to your clipboard" };
+            }
+
+            case "openapp": {
+                let key = clean(raw.app, 30).toLowerCase();
+                key = APP_ALIASES[key] || key;
+
+                if (!APPS[key]) return null;
+
+                const query = APPS[key].search ? clean(raw.query, 150) : "";
+
+                return {
+                    type, app: key, query,
+                    label: query
+                        ? "Search " + APPS[key].name + ' for: "' + query + '"'
+                        : "Open the " + APPS[key].name + " app"
+                };
             }
 
             case "notifications":
@@ -395,6 +447,12 @@
                 showNotice("Copied.");
                 break;
 
+            case "openapp": {
+                const url = appLaunchUrl(action.app, action.query);
+                if (url) openApp(url);
+                break;
+            }
+
             case "notifications": {
                 if (!("Notification" in window)) {
                     showNotice("Notifications are not supported here.");
@@ -499,6 +557,66 @@
 
         return { cleaned, actions };
     }
+
+    // ---------- quick commands: typed by the user, run instantly ----------
+    // "open youtube", "youtube eka open karanna", "call 0771234567"
+    // The user typed it, so no confirmation card is needed.
+
+    const QUICK_WORDS = {
+        youtube: ["youtube", "you tube"], whatsapp: ["whatsapp", "whats app"],
+        facebook: ["facebook"], instagram: ["instagram"], telegram: ["telegram"],
+        twitter: ["twitter"], tiktok: ["tiktok", "tik tok"], spotify: ["spotify"],
+        maps: ["google maps", "maps"], gmail: ["gmail"], playstore: ["play store", "playstore"]
+    };
+
+    function parseQuickCommand(text) {
+
+        const t = String(text || "").toLowerCase().trim();
+
+        if (!t || t.length > 50) return null;
+        if (/\?|\b(how|why|what|when|which|where|kohomada|mokakda|mokada)\b/.test(t)) return null;
+
+        const call = t.match(/^(call|dial)\s+(\+?[0-9][0-9\s()-]{3,18})$/);
+
+        if (call) {
+            const number = call[2].trim();
+            return phoneOk(number) ? { type: "call", number } : null;
+        }
+
+        if (!/\b(open|launch|start)\b/.test(t)) return null;
+
+        for (const key of Object.keys(QUICK_WORDS)) {
+            if (QUICK_WORDS[key].some(word => t.includes(word))) {
+                return { type: "openapp", app: key, query: "" };
+            }
+        }
+
+        return null;
+    }
+
+    const originalSend = window.sendMessage;
+
+    window.sendMessage = function (isRegenerate) {
+
+        if (isRegenerate !== true && input && !selectedMedia && !selectedDocument) {
+
+            const command = parseQuickCommand(input.value);
+
+            if (command) {
+                input.value = "";
+                input.style.height = "auto";
+
+                showNotice(command.type === "call"
+                    ? "Opening the dialer..."
+                    : "Opening " + APPS[command.app].name + "...");
+
+                runAction(command);
+                return;
+            }
+        }
+
+        return originalSend.apply(this, arguments);
+    };
 
     const originalRender = window.renderAIContent;
 
