@@ -646,3 +646,24 @@ border: 1px solid var(--border); border-radius: 12px; line-height: 1.6; white-sp
     background: var(--green);
     color: #06140b;
 }
+
+/* PHONE ACTION CARDS */
+.action-cards { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.action-card {
+    padding: 13px 14px; border-radius: 14px; background: rgba(54,230,138,.07);
+    border: 1px solid rgba(54,230,138,.28);
+}
+.action-card.done { opacity: .7; border-color: var(--border); }
+.action-tag { font-size: 9px; letter-spacing: 2px; color: var(--green); margin-bottom: 6px; }
+.action-label { font-size: 13px; line-height: 1.6; color: var(--text); overflow-wrap: anywhere; }
+.action-note { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+.action-buttons { display: flex; gap: 8px; margin-top: 11px; font-size: 12px; color: var(--green2); }
+.action-allow {
+    padding: 8px 18px; border-radius: 10px; background: var(--green); color: #06140b;
+    font-size: 12px; font-weight: bold;
+}
+.action-allow:disabled { opacity: .6; }
+.action-dismiss {
+    padding: 8px 14px; border-radius: 10px; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); font-size: 12px;
+}
