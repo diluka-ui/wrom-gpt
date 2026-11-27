@@ -2,8 +2,8 @@
   "name": "WROM GPT",
   "short_name": "WROM GPT",
   "description": "WROM GPT - Your personal AI assistant",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/wrom-gpt/index.html",
+  "scope": "/wrom-gpt/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#07110d",
@@ -28,9 +28,14 @@
       "purpose": "maskable"
     }
   ],
-  "id": "./",
+  "id": "/wrom-gpt/",
   "categories": [
     "productivity",
     "utilities"
-  ]
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "lang": "en"
 }
